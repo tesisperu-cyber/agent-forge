@@ -35,10 +35,11 @@ def validate(spec: AgentSpec) -> list[Issue]:
         err(f"description debe tener 20-500 caracteres (tiene {len(spec.description)}); diga CUÁNDO usarlo")
     if not (150 <= len(spec.system_prompt) <= 12000):
         err(f"system_prompt debe tener 150-12000 caracteres (tiene {len(spec.system_prompt)})")
-    bad = [t for t in spec.tools if t not in ALLOWED_TOOLS]
+    # En una skill 'tools' no se escribe en el archivo: solo se valida en subagentes.
+    bad = [t for t in spec.tools if t not in ALLOWED_TOOLS] if spec.kind == "subagent" else []
     if bad:
         err(f"herramientas no permitidas: {', '.join(bad)}")
-    risky = [t for t in spec.tools if t in RISKY_TOOLS]
+    risky = [t for t in spec.tools if t in RISKY_TOOLS] if spec.kind == "subagent" else []
     if risky:
         warn(f"el agente puede modificar el sistema ({', '.join(risky)}): revíselo antes de usarlo")
     if spec.model and spec.model not in KNOWN_MODELS:

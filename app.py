@@ -7,7 +7,7 @@ import streamlit as st
 from agent_forge.forge import forge
 from agent_forge.llm import OpenRouterClient, AuthError, list_models
 from agent_forge.render import render, output_path
-from agent_forge.validator import errors
+from agent_forge.validator import errors, validate, ALLOWED_TOOLS
 
 st.set_page_config(page_title="agent-forge", page_icon="🛠️", layout="wide")
 st.title("🛠️ agent-forge — un agente que crea agentes")
@@ -66,9 +66,19 @@ if st.button("Crear agente", type="primary", disabled=not goal.strip()):
 res = st.session_state.get("res")
 if res:
     st.divider()
+    if res.spec.kind == "subagent":
+        invalid = [t for t in res.spec.tools if t not in ALLOWED_TOOLS]
+        if invalid:
+            st.info(f"El modelo pidió herramientas que no existen ({', '.join(invalid)}). "
+                    "Elija abajo las herramientas correctas y el agente se vuelve a validar.")
+        picked = st.multiselect("Herramientas del agente (mínimo privilegio)", sorted(ALLOWED_TOOLS),
+                                default=[t for t in res.spec.tools if t in ALLOWED_TOOLS],
+                                key=f"tools_{res.spec.name}_{id(res)}")
+        res.spec.tools = picked
+    res.issues = validate(res.spec)          # se revalida en vivo con lo que usted edite
     errs = errors(res.issues)
-    if res.passed:
-        st.success("APROBADO por validación y pruebas")
+    if res.passed or not errs:
+        st.success("APROBADO por validación y pruebas" if res.passed else "Sin errores de validación (revise las advertencias)")
     else:
         st.warning("No superó todas las comprobaciones: revíselo con cuidado antes de usarlo.")
     left, right = st.columns([3, 2])
